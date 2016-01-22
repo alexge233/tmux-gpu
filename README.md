@@ -3,6 +3,8 @@
 A tmux nVIDIA gpu monitor.
 Inspired from [rainbarf](https://github.com/creaktive/rainbarf).
 
+![tmux-gpu](https://github.com/alexge233/tmux-gpu/blob/master/tmux-gpu.png?raw=true)
+
 The script will obtain and display:
 - `GPU usage` which is averaged for multiple GPUs (left, green bars).
 - `PCIe bandwidth usage` also averaged (second from left, cyan bars).
@@ -33,7 +35,7 @@ by doing:
 ```
 let g:tmuxline_preset = {
       \'a'    : '#S', 
-      \'b'    : '#(node .tmux/gpu.js) #[default]',
+      \'b'    : '#(node .tmux/gpu.js)',
       \'c'    : '',
       \'win'  : '#W #I',
       \'cwin' : '#W #I',
