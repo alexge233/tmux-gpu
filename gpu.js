@@ -4,11 +4,9 @@
 /// and displays it as in your tmux status bar.
 ///
 const sp = require('child_process');
-const colors = require('tmux-colors');
-const fs = require('fs');
 
 // width of GPU usage
-const gpu_width = 20;
+const gpu_width = 10;
 const pci_width = 3;
 const temp_width = 1;
 const ram_width = 3;
@@ -44,32 +42,35 @@ gpu_ids.forEach(function(id){
     var gpu_use = (out.match(/graphics=\d?\d/g)[0]).replace('graphics=', '');
     var ram_use = (out.match(/memory=\d?\d/g)[0]).replace('memory=', '');
     var pci_use = (out.match(/PCIe=\d?\d/g)[0]).replace('PCIe=', '');
-    averages[0] += parseInt(gpu_use);
-    //averages[1] += parseInt(ram_use);
-    averages[1] += parseInt(pci_use);
+    averages[0] += parseFloat(gpu_use);
+    averages[1] += parseFloat(pci_use);
+
     // query gpu temp
     var query = sp.spawnSync("/usr/bin/nvidia-settings", ["-t", "-q", id+"/GPUCoreTemp"]);
     out = query.stdout.toString();
     out = out.replace(/^\s+|\s+$/g, '');
-    averages[2] += parseInt(out);
+    averages[2] += parseFloat(out);
+
     // query gpu used memory
     var query = sp.spawnSync("/usr/bin/nvidia-settings", ["-t", "-q", id+"/UsedDedicatedGPUMemory"]);
     out = query.stdout.toString();
     var used_mem = out.replace(/^\s+|\s+$/g, '');
+
     // query gpu total memory
     var query = sp.spawnSync("/usr/bin/nvidia-settings", ["-t", "-q", id+"/TotalDedicatedGPUMemory"]);
     out = query.stdout.toString();
     var total_mem = out.replace(/^\s+|\s+$/g, '');
+
     // min-max norm ram usage
     var norm = (used_mem - 0) / (total_mem - 0);
-    averages[3] += parseInt(parseFloat(norm)*100);
+    averages[3] += parseFloat(norm)*100;
     devices++;
 });
 
 // Average all values
-averages.forEach(function(val){
-    val /= devices;
-});
+for (var i=0; i< averages.length; i++){
+    averages[i] = averages[i]/devices;
+}
 
 // 8ths 
 var bars = [ '\u2581','\u2582','\u2583','\u2584',
@@ -77,14 +78,13 @@ var bars = [ '\u2581','\u2582','\u2583','\u2584',
 
 // all previous history
 var history = {};
+const fs = require('fs');
 var contents;
 
 // load previous averages from file
 fs.access('.gpu.tmp', fs.F_OK, function(err) {
-    if (!err) 
-    {
-        if (contents = fs.readFileSync('.gpu.tmp', 'utf8'))
-        {
+    if (!err) {
+        if (contents = fs.readFileSync('.gpu.tmp', 'utf8')){
             history = JSON.parse(contents);
             print_graphs();
         }
@@ -95,14 +95,14 @@ fs.access('.gpu.tmp', fs.F_OK, function(err) {
         history[2] = [];
         history[3] = [];
         for (var i=0; i<gpu_width; i++)
-            history[0][i] = 0;
+            history[0][i] = parseFloat(0);
         for (var i=0; i<pci_width; i++)
-            history[1][i] = 0;
+            history[1][i] = parseFloat(0);
         for (var i=0; i<temp_width; i++)
-            history[2][i] = 0;
+            history[2][i] = parseFloat(0);
         for (var i=0; i<ram_width; i++)
-            history[3][i] = 0;
-
+            history[3][i] = parseFloat(0);
+        //
         print_graphs();
     }
 });
@@ -116,19 +116,19 @@ function print_graphs()
         for (var k=0; k<history[i].length; k++){
             if (i !== 2){
                 var x = parseInt((((history[i][k] - 0) * (8 - 1)) / (100 - 0)) + 1);
-                text[i] +=  bars[x];
-            }
+                text[i] += bars[x];
+           }
             else {
                 var x = parseInt((((history[i][k] - 30) * (8 - 1)) / (100 - 30)) + 1);
-                text[i] +=  bars[x];
+                text[i] += bars[x];
             }
         }
     }
 
-    var output = colors('#[fg=green,bold]'+text[0]+'#[fg=cyan,bold]'+text[1]
-                       +'#[fg=red,bold]'+text[2]+'#[fg=yellow,bold]'+text[3]
-                       +'#[default]');
-    process.stdout.write(output);
+    var colors = require('tmux-colors');
+    process.stdout.write(colors('#[fg=green,bold]'+text[0]+'#[fg=cyan,bold]'+text[1]
+                         +'#[fg=red,bold]'+text[2]+'#[fg=yellow,bold]'+text[3]
+                         +'#[default]'));
 
     // write computed averages to file
     fs.writeFile('.gpu.tmp', JSON.stringify(history), function (err){
